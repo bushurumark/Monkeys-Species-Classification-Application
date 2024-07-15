@@ -69,7 +69,7 @@ def predict(image):
 # Custom CSS for background and other elements
 st.markdown("""
     <style>
-    .body {
+    .main {
         background-color: blue;
     }
     .title {
