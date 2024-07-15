@@ -69,11 +69,11 @@ def predict(image):
 # Custom CSS for background and other elements
 st.markdown("""
     <style>
-    body {
-        background-color: #0000ff !important; /* Blue background color */
+    .body {
+        background-color: blue;
     }
     .title {
-        color: #ff0000; /* Red title color */
+        color: red;
         font-family: 'Arial';
         text-align: center;
     }
@@ -82,7 +82,7 @@ st.markdown("""
     }
     .prediction {
         font-size: 20px;
-        color: #4CAF50;
+        color: indigo;
         font-weight: bold;
         text-align: center;
     }
