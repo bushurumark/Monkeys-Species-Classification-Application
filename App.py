@@ -96,7 +96,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # Streamlit interface with custom styles
-st.markdown('<h1 class="title">Computer Vision Monkeys Species Prediction Model</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="title">Monkeys Species Classification Application</h1>', unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
 
