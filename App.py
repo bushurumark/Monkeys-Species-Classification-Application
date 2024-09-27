@@ -24,6 +24,7 @@ import gdown
 import os
 
 # Direct download link of the model file from Google Drive
+@st.cache_data  # Caching the model so it doesn't download every time the app reloads
 url = 'https://drive.google.com/uc?id=1hQ_gEuno0tOtAIx3ReKhS1SnQ4OEdXqx'
 
 # Path to save the downloaded model file
