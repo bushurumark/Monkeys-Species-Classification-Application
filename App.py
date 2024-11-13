@@ -18,6 +18,8 @@ Original file is located at
 
 import streamlit as st
 import tensorflow as tf
+from tensorflow.keras.applications import ResNet50
+from tensorflow.keras.applications.resnet50 import preprocess_input, decode_predictions
 from PIL import Image
 import numpy as np
 import gdown
@@ -29,7 +31,7 @@ url = 'https://drive.google.com/uc?id=1hQ_gEuno0tOtAIx3ReKhS1SnQ4OEdXqx'
 # Path to save the downloaded model file
 model_path = 'my_model.keras'
 
-# Download the model if it does not exist
+# Download the species classification model if it does not exist
 if not os.path.exists(model_path):
     with st.spinner('Downloading model...'):
         gdown.download(url, model_path, quiet=False)
@@ -40,21 +42,45 @@ def load_model():
 
 model = load_model()
 
-# Define the species names
+# Load a general pre-trained model for monkey detection
+@st.cache_resource
+def load_detection_model():
+    return ResNet50(weights='imagenet')
+
+detection_model = load_detection_model()
+
+# Define species names
 species_names = [
     "Mantled Howler", "Patas Monkey", "Bald Monkey", "Japanese Macaque",
     "Pygmy Marmoset", "White Headed Capuchin", "Silver Marmoset",
     "Common Squirrel Monkey", "Black Headed Night Monkey", "Nilgiri Langur"
 ]
 
-# Define a function to preprocess the image for the model
+# Define a function to preprocess images for the species classification model
 def preprocess_image(image, target_size=(64, 64)):
     image = image.convert("RGB")
     image = tf.image.resize_with_pad(np.array(image), target_size[0], target_size[1])
     image = np.expand_dims(image, axis=0) / 255.0
     return image
 
-# Define a function to make species predictions
+# Function to check if an image likely contains a monkey using the general detection model
+def contains_monkey(image):
+    # Preprocess and classify the image with the detection model
+    image = image.resize((224, 224))
+    image = image.convert("RGB")
+    image_array = np.expand_dims(np.array(image), axis=0)
+    image_array = preprocess_input(image_array)
+
+    predictions = detection_model.predict(image_array)
+    labels = decode_predictions(predictions, top=5)[0]
+    
+    # Check if any label indicates a monkey
+    for label in labels:
+        if 'monkey' in label[1]:  # Keyword check for 'monkey'
+            return True
+    return False
+
+# Function to make species predictions if a monkey is detected
 def predict_species(image):
     processed_image = preprocess_image(image)
     prediction = model.predict(processed_image)
@@ -63,7 +89,7 @@ def predict_species(image):
 # Custom CSS for blue background and other elements
 st.markdown("""
     <style>
-    .main {
+    body {
         background-color: #add8e6;  /* Light blue background */
     }
     .title {
@@ -76,12 +102,6 @@ st.markdown("""
         color: indigo;
         font-weight: bold;
         text-align: center;
-    }
-    .uploaded-image {
-        display: block;
-        margin-left: auto;
-        margin-right: auto;
-        border: 5px solid #ccc;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -105,27 +125,33 @@ elif option == "Take a Photo":
     if camera_photo is not None:
         image = Image.open(camera_photo)
 
-# If an image is provided, display it and make a prediction
+# If an image is provided, first check if it likely contains a monkey
 if image is not None:
     st.image(image, caption='Uploaded Image.', use_column_width=True)
     st.write("")
-    st.markdown('<div class="prediction">Classifying...</div>', unsafe_allow_html=True)
+    st.markdown('<div class="prediction">Checking for monkey presence...</div>', unsafe_allow_html=True)
 
-    # Make species prediction
-    prediction = predict_species(image)
+    if contains_monkey(image):
+        st.markdown('<div class="prediction">Monkey detected. Classifying species...</div>', unsafe_allow_html=True)
 
-    # Get the index of the highest probability and the confidence score
-    predicted_index = np.argmax(prediction, axis=1)[0]
-    confidence_score = np.max(prediction, axis=1)[0]
+        # Make species prediction
+        prediction = predict_species(image)
 
-    # Set a confidence threshold
-    confidence_threshold = 0.8  # You can adjust this value
+        # Get the index of the highest probability and the confidence score
+        predicted_index = np.argmax(prediction, axis=1)[0]
+        confidence_score = np.max(prediction, axis=1)[0]
 
-    # Check if the confidence score exceeds the threshold
-    if confidence_score > confidence_threshold:
-        predicted_species = species_names[predicted_index]
-        st.markdown(f'<div class="prediction">Prediction: {predicted_species} (Confidence: {confidence_score:.2f})</div>', unsafe_allow_html=True)
-        st.progress(int(confidence_score * 100))
+        # Set a confidence threshold
+        confidence_threshold = 0.8  # Adjust as needed
+
+        # Check if the confidence score exceeds the threshold
+        if confidence_score > confidence_threshold:
+            predicted_species = species_names[predicted_index]
+            st.markdown(f'<div class="prediction">Prediction: {predicted_species} (Confidence: {confidence_score:.2f})</div>', unsafe_allow_html=True)
+            st.progress(int(confidence_score * 100))
+        else:
+            st.markdown('<div class="prediction">The image is not confidently recognized as a specific monkey species.</div>', unsafe_allow_html=True)
     else:
-        st.markdown('<div class="prediction">The uploaded image is not recognized confidently as a monkey species.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="prediction">No monkey detected in the image. Please upload a different image.</div>', unsafe_allow_html=True)
+
 
