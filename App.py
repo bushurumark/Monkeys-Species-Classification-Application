@@ -23,102 +23,64 @@ import numpy as np
 import gdown
 import os
 
-# Direct download link of the model file from Google Drive
 url = 'https://drive.google.com/uc?id=1hQ_gEuno0tOtAIx3ReKhS1SnQ4OEdXqx'
-
-# Path to save the downloaded model file
 model_path = 'my_model.keras'
 
-# Download the model if it does not exist
 if not os.path.exists(model_path):
     with st.spinner('Downloading model...'):
         gdown.download(url, model_path, quiet=False)
 
-# Load the species classification model
-model = tf.keras.models.load_model(model_path)
+@st.cache_resource
+def load_model():
+    return tf.keras.models.load_model(model_path)
 
-# Define the species names
+model = load_model()
+
 species_names = [
-    "Mantled Howler",
-    "Patas Monkey",
-    "Bald Monkey",
-    "Japanese Macaque",
-    "Pygmy Marmoset",
-    "White Headed Capuchin",
-    "Silver Marmoset",
-    "Common Squirrel Monkey",
-    "Black Headed Night Monkey",
-    "Nilgiri Langur"
+    "Mantled Howler", "Patas Monkey", "Bald Monkey", "Japanese Macaque",
+    "Pygmy Marmoset", "White Headed Capuchin", "Silver Marmoset",
+    "Common Squirrel Monkey", "Black Headed Night Monkey", "Nilgiri Langur"
 ]
 
-# Define a function to preprocess the image for the model
 def preprocess_image(image, target_size=(64, 64)):
-    image = image.resize(target_size)
     image = image.convert("RGB")
-    image = np.array(image)
-    image = np.expand_dims(image, axis=0)
-    image = image / 255.0
+    image = tf.image.resize_with_pad(np.array(image), target_size[0], target_size[1])
+    image = np.expand_dims(image, axis=0) / 255.0
     return image
 
-# Define a function to make species predictions
 def predict_species(image):
     processed_image = preprocess_image(image)
     prediction = model.predict(processed_image)
     return prediction
 
-# Custom CSS for background and other elements
 st.markdown("""
     <style>
-    .main {
-        background-color: blue;
-    }
-    .title {
-        color: red;
-        font-family: 'Arial';
-        text-align: center;
-    }
-    .uploader {
-        text-align: center;
-    }
-    .prediction {
-        font-size: 20px;
-        color: indigo;
-        font-weight: bold;
-        text-align: center;
-    }
-    .uploaded-image {
-        display: block;
-        margin-left: auto;
-        margin-right: auto;
-        border: 5px solid #ccc;
-    }
+    .main { background-color: #f0f8ff; }
+    .title { color: #2f4f4f; font-family: 'Arial'; text-align: center; }
+    .prediction { font-size: 20px; color: indigo; font-weight: bold; text-align: center; }
     </style>
     """, unsafe_allow_html=True)
 
-# Streamlit interface with custom styles
 st.markdown('<h1 class="title">Monkeys Species Classification Application</h1>', unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
-    st.image(image, caption='Uploaded Image.', use_column_width=True, output_format='JPEG', channels='RGB')
+    st.image(image, caption='Uploaded Image.', use_column_width=True)
     st.write("")
     st.markdown('<div class="prediction">Classifying...</div>', unsafe_allow_html=True)
 
-    # Make species prediction
     prediction = predict_species(image)
-
-    # Get the index of the highest probability and the confidence score
     predicted_index = np.argmax(prediction, axis=1)[0]
     confidence_score = np.max(prediction, axis=1)[0]
 
-    # Set a confidence threshold
-    confidence_threshold = 0.8  # You can adjust this value
+    confidence_threshold = 0.8
 
-    # Check if the confidence score exceeds the threshold
     if confidence_score > confidence_threshold:
         predicted_species = species_names[predicted_index]
         st.markdown(f'<div class="prediction">Prediction: {predicted_species} (Confidence: {confidence_score:.2f})</div>', unsafe_allow_html=True)
+        st.progress(int(confidence_score * 100))
     else:
-        st.markdown('<div class="prediction">The uploaded image is not recognized confidently as a monkey species.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="prediction">We couldn\'t confidently classify this image. Try using a clearer image.</div>', unsafe_allow_html=True)
+
