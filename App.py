@@ -22,6 +22,7 @@ from PIL import Image
 import numpy as np
 import gdown
 import os
+from ultralytics import YOLO
 
 # Direct download link of the model file from Google Drive
 url = 'https://drive.google.com/uc?id=1hQ_gEuno0tOtAIx3ReKhS1SnQ4OEdXqx'
@@ -53,6 +54,15 @@ def preprocess_image(image, target_size=(64, 64)):
     image = tf.image.resize_with_pad(np.array(image), target_size[0], target_size[1])
     image = np.expand_dims(image, axis=0) / 255.0
     return image
+
+# Define a function to check if the image contains a monkey
+def is_monkey(image):
+    model = YOLO("yolov5s")  # Load a small YOLOv5 model
+    results = model(image)
+    for obj in results.pred[0]:
+        if obj['class'] in ['monkey', 'primate']:  # Replace with actual monkey labels
+            return True
+    return False
 
 # Define a function to make species predictions
 def predict_species(image):
@@ -111,21 +121,26 @@ if image is not None:
     st.write("")
     st.markdown('<div class="prediction">Classifying...</div>', unsafe_allow_html=True)
 
-    # Make species prediction
-    prediction = predict_species(image)
-
-    # Get the index of the highest probability and the confidence score
-    predicted_index = np.argmax(prediction, axis=1)[0]
-    confidence_score = np.max(prediction, axis=1)[0]
-
-    # Set a confidence threshold
-    confidence_threshold = 0.8  # You can adjust this value
-
-    # Check if the confidence score exceeds the threshold
-    if confidence_score > confidence_threshold:
-        predicted_species = species_names[predicted_index]
-        st.markdown(f'<div class="prediction">Prediction: {predicted_species} (Confidence: {confidence_score:.2f})</div>', unsafe_allow_html=True)
-        st.progress(int(confidence_score * 100))
+    # Pre-filter the image
+    if not is_monkey(image):
+        st.markdown('<div class="prediction">No monkey detected in the image. Please upload an image with a monkey.</div>', unsafe_allow_html=True)
     else:
-        st.markdown('<div class="prediction">The uploaded image is not recognized confidently as a monkey species.</div>', unsafe_allow_html=True)
+        # Make species prediction
+        prediction = predict_species(image)
+
+        # Get the index of the highest probability and the confidence score
+        predicted_index = np.argmax(prediction, axis=1)[0]
+        confidence_score = np.max(prediction, axis=1)[0]
+
+        # Set a confidence threshold
+        confidence_threshold = 0.9  # Stricter confidence
+
+        # Check if the confidence score exceeds the threshold
+        if confidence_score > confidence_threshold:
+            predicted_species = species_names[predicted_index]
+            st.markdown(f'<div class="prediction">Prediction: {predicted_species} (Confidence: {confidence_score:.2f})</div>', unsafe_allow_html=True)
+            st.progress(int(confidence_score * 100))
+        else:
+            st.markdown('<div class="prediction">The uploaded image is not confidently recognized as a monkey species.</div>', unsafe_allow_html=True)
+
 
