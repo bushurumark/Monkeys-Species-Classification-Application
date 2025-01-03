@@ -8,3 +8,4 @@ pandas
 tensorflow
 Pillow
 gdown 
+ultralytics
